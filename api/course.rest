@@ -1,0 +1,44 @@
+### CREATE COURSE
+POST {{baseUrl}}/course/create
+Content-Type: application/json
+
+{"title": "Generative AI with Python",
+    "subtitle": "Build ChatGPT-like Apps using OpenAI, LangChain & LLMs",
+    "thumbnail": "https://example.com/thumbnails/genai.jpg",
+    "category": "Artificial Intelligence, Data & Automation",
+    "level": "Intermediate",
+    "rating": 4.8,
+    "totalReviews": 8200,
+    "totalHours": "32 HRS",
+    "studentsEnrolled": 45000,
+    "description": "Create your own AI apps with GPT-4, embeddings, vector DBs & agents",
+    "skills": ["OpenAI API", "LangChain", "Pinecone", "LlamaIndex", "Streamlit"],
+    "requirements": ["Basic Python knowledge"],
+    "instructor": {
+      "name": "Anand Rao",
+      "designation": "AI Engineer",
+      "experience": "6 Years",
+      "bio": "Ex-Google AI engineer turned educator"
+    },
+    "curriculum": [
+      { "moduleTitle": "Python Fundamentals", "lessons": [{ "title": "Setup & Variables", "duration": "25m" }, { "title": "Control Flow", "duration": "30m" }] },
+      { "moduleTitle": "Advanced Python", "lessons": [{ "title": "OOP Concepts", "duration": "45m" }, { "title": "Decorators & Generators", "duration": "40m" }] }
+    ],
+    "reviews": [
+      { "userName": "Arjun Patel", "rating": 5, "comment": "Best Python course ever!" },
+      { "userName": "Priya Singh", "rating": 4.5, "comment": "Clear explanations and projects" }
+    ]
+}
+
+### Get courses by category
+GET {{baseUrl}}/course/category/Web Development?page=1&limit=10
+Content-Type: application/json
+
+
+### Get courses by category
+GET {{baseUrl}}/course/category/
+Content-Type: application/json
+
+### get delete course
+DELETE {{baseUrl}}/course/delete
+Content-Type: application/json

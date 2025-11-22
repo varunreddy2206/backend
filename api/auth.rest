@@ -1,0 +1,21 @@
+
+### signup
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "firstName": "Vamsi",
+  "lastName": "Digamarthi",
+  "email": "vamsi@test.com",
+  "mobile": "9876543210",
+  "password": "mypassword"
+}
+
+### login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "vamsi@test.com",
+  "password": "mypassword"
+}
