@@ -21,6 +21,9 @@ import CourseModel from "../modals/course.model.js";
 export const createCourse = async (req, res) => {
   try {
     const body = req.body;
+    if (req.files["thumbnail"]) {
+      body.thumbnail = req.files["thumbnail"][0].path;
+    }
 
     // Attach PDF file if uploaded
     if (req.files["curriculumPdf"]) {
