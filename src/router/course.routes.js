@@ -4,6 +4,7 @@ import {
   deleteAllCourse,
   getCourseById,
   getCourses,
+  getFilterOptions,
 } from "../controllers/course.controller.js";
 import { createCourseValidation } from "../validations/course.validation.js";
 import { validate } from "../Middlewares/validate.js";
@@ -25,6 +26,7 @@ router.post(
   createCourse
 );
 
+router.get("/filter-options", getFilterOptions);
 router.get("/all", getCourses); // Get all courses with filters
 router.get("/category/:category", getCourses);
 router.get("/:id", getCourseById);

@@ -22,6 +22,11 @@ export const createCourse = async (req, res) => {
   try {
     const body = req.body;
 
+    // Attach thumbnail image if uploaded
+    if (req.files["thumbnail"]) {
+      body.thumbnail = req.files["thumbnail"][0].path;
+    }
+
     // Attach PDF file if uploaded
     if (req.files["curriculumPdf"]) {
       body.curriculumPdf = req.files["curriculumPdf"][0].path;
@@ -235,6 +240,28 @@ export const deleteAllCourse = async (req, res) => {
     return res.status(200).json({ message: "deleted sucessfully" });
   } catch (error) {
     console.error("Get Courses Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server Error",
+    });
+  }
+};
+
+// Get filter options (categories, training modes, levels)
+export const getFilterOptions = async (req, res) => {
+  try {
+    const { COURSE_CATEGORY, COURSE_LEVEL, TrainingOptions } = await import("../common/courses.data.js");
+
+    return res.status(200).json({
+      status: true,
+      data: {
+        categories: Object.values(COURSE_CATEGORY),
+        levels: Object.values(COURSE_LEVEL),
+        trainingOptions: Object.values(TrainingOptions),
+      },
+    });
+  } catch (error) {
+    console.error("Get Filter Options Error:", error);
     return res.status(500).json({
       status: false,
       message: "Server Error",
