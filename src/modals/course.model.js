@@ -76,7 +76,7 @@ const CourseSchema = new mongoose.Schema(
     description: { type: String },
     skills: [{ type: String }],
     careerOpportunities: [{ type: String }],
-    instructorName: { type: String }, // Simplified instructor details
+    instructorName: { type: String }, 
 
     thumbnail: { type: String },
     curriculumPdf: { type: String },
@@ -108,6 +108,9 @@ const CourseSchema = new mongoose.Schema(
     rating: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 },
     reviews: [RatingSchema],
+
+    // ------------------- Enrollment -------------------
+    enrolledUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   },
   { timestamps: true }
 );

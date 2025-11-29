@@ -2,11 +2,15 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 import "dotenv/config";
 import errorHandler from "./Middlewares/errorHandler.js";
 import AuthRouter from "../src/router/auth.routes.js";
 import CourseRouter from "../src/router/course.routes.js";
 import logger from "./utils/logger.js";
+
+
 
 const app = express();
 const PORT = process.env.PORT || 8899;
@@ -16,7 +20,8 @@ app.use(bodyParser.json({ limit: "30mb", extended: true }));
 app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
 app.use(cors());
 
-app.use(errorHandler);
+// Serve static files from uploads directory
+app.use("/uploads", express.static("uploads"));
 
 mongoose
   .connect(process.env.MONGODB_URL)
@@ -35,3 +40,6 @@ app.use("/course", CourseRouter);
 app.get("/", (req, res) => {
   return res.status(200).json({ message: "Course Server..!" });
 });
+
+// Error handler should be last
+app.use(errorHandler);

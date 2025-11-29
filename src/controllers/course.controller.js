@@ -1,4 +1,5 @@
 import CourseModel from "../modals/course.model.js";
+import logger from "../utils/logger.js";
 
 // export const createCourse = async (req, res) => {
 //   try {
@@ -96,9 +97,10 @@ export const getCourses = async (req, res) => {
     const filter = {};
 
     // Category filter (from params or query)
-    if (category && category !== 'all') {
+    // Handle "All" case-insensitively - don't filter when it's "All" or "all"
+    if (category && category.toLowerCase() !== 'all') {
       filter.category = category;
-    } else if (req.query.category) {
+    } else if (req.query.category && req.query.category.toLowerCase() !== 'all') {
       filter.category = req.query.category;
     }
 
@@ -268,6 +270,171 @@ export const getFilterOptions = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: "Server Error",
+    });
+  }
+};
+
+// Get popular courses (sorted by enrolledUsers count)
+export const getPopularCourses = async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 4;
+
+    // First, try to get courses with enrolledUsers (popular courses)
+    // Use aggregation to sort by enrolledUsers array length
+    const popularCourses = await CourseModel.aggregate([
+      {
+        $addFields: {
+          enrolledCount: { $size: { $ifNull: ["$enrolledUsers", []] } }
+        }
+      },
+      {
+        $match: {
+          enrolledCount: { $gt: 0 } // Only courses with at least 1 enrollment
+        }
+      },
+      {
+        $sort: { enrolledCount: -1 } // Sort by enrollment count descending
+      },
+      {
+        $limit: limit
+      },
+      {
+        $project: {
+          reviews: 0 // Exclude reviews array for performance
+        }
+      }
+    ]);
+
+    // If we have popular courses, return them
+    if (popularCourses && popularCourses.length > 0) {
+      return res.status(200).json({
+        status: true,
+        data: popularCourses,
+        count: popularCourses.length,
+      });
+    }
+
+    // If no popular courses, get any 4 latest courses as fallback
+    const fallbackCourses = await CourseModel.find({})
+      .sort({ createdAt: -1 }) // Latest first
+      .limit(limit)
+      .select('-reviews');
+
+    return res.status(200).json({
+      status: true,
+      data: fallbackCourses,
+      count: fallbackCourses.length,
+    });
+  } catch (error) {
+    logger.error("Get Popular Courses Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Enroll in a course
+export const enrollCourse = async (req, res) => {
+  try {
+    const { id: courseId } = req.params;
+    const userId = req.userId; // From auth middleware
+
+    if (!courseId) {
+      return res.status(400).json({
+        status: false,
+        message: "Course ID is required",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Find the course
+    const course = await CourseModel.findById(courseId);
+
+    if (!course) {
+      return res.status(404).json({
+        status: false,
+        message: "Course not found",
+      });
+    }
+
+    // Check if user is already enrolled
+    if (course.enrolledUsers && course.enrolledUsers.includes(userId)) {
+      return res.status(400).json({
+        status: false,
+        message: "You are already enrolled in this course",
+      });
+    }
+
+    // Check if course has student limit and if it's reached
+    if (course.studentLimit && course.enrolledUsers && course.enrolledUsers.length >= course.studentLimit) {
+      return res.status(400).json({
+        status: false,
+        message: "Course enrollment limit reached",
+      });
+    }
+
+    // Add user to enrolledUsers array
+    if (!course.enrolledUsers) {
+      course.enrolledUsers = [];
+    }
+    course.enrolledUsers.push(userId);
+    await course.save();
+
+    logger.info(`User ${userId} enrolled in course ${courseId}`);
+
+    return res.status(200).json({
+      status: true,
+      message: "Successfully enrolled in course",
+      data: {
+        courseId: course._id,
+        enrolledUsers: course.enrolledUsers.length,
+      },
+    });
+  } catch (error) {
+    logger.error("Enroll Course Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server error",
+    });
+  }
+};
+
+// Get enrolled courses for authenticated user
+export const getMyEnrolledCourses = async (req, res) => {
+  try {
+    const userId = req.userId; // From authenticateMiddle
+
+    if (!userId) {
+      return res.status(401).json({
+        status: false,
+        message: "User not authenticated",
+      });
+    }
+
+    // Find all courses where enrolledUsers array contains the userId
+    const enrolledCourses = await CourseModel.find({
+      enrolledUsers: { $in: [userId] }
+    })
+      .sort({ createdAt: -1 }) // Latest enrolled first
+      .select('-reviews'); // Exclude reviews array for performance
+
+    return res.status(200).json({
+      status: true,
+      data: enrolledCourses,
+      count: enrolledCourses.length,
+    });
+  } catch (error) {
+    logger.error("Get My Enrolled Courses Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server error",
     });
   }
 };

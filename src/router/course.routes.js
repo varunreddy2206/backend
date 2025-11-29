@@ -5,10 +5,14 @@ import {
   getCourseById,
   getCourses,
   getFilterOptions,
+  enrollCourse,
+  getPopularCourses,
+  getMyEnrolledCourses,
 } from "../controllers/course.controller.js";
 import { createCourseValidation } from "../validations/course.validation.js";
 import { validate } from "../Middlewares/validate.js";
 import { upload } from "../Middlewares/multer.config.js";
+import { authenticateMiddle } from "../Middlewares/authmiddleware.js";
 
 const router = express.Router();
 
@@ -27,9 +31,15 @@ router.post(
 );
 
 router.get("/filter-options", getFilterOptions);
+router.get("/popular", getPopularCourses); // Get popular courses (sorted by enrolledUsers count)
+router.get("/my-courses", authenticateMiddle, getMyEnrolledCourses); // Get enrolled courses for authenticated user
 router.get("/all", getCourses); // Get all courses with filters
 router.get("/category/:category", getCourses);
-router.get("/:id", getCourseById);
 router.delete("/delete", deleteAllCourse);
+
+// Enrollment route (protected - requires authentication) - must come before /:id to avoid route conflicts
+router.post("/:id/enroll", authenticateMiddle, enrollCourse);
+
+router.get("/:id", getCourseById);
 
 export default router;

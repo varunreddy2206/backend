@@ -9,6 +9,9 @@ const UserUserSchema = new Schema({
 //   role: { type: String, enum: ["Admin", "Users"], default: "Admin" },
 //   address: { type: String, required: true },
   password: { type: String, required: true },
+  profileImage: { type: String, default: null },
+  gender: { type: String, default: null },
+  dateOfBirth: { type: String, default: null },
  
 });
 

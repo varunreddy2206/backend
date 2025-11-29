@@ -38,6 +38,11 @@ export const upload = multer({
       return cb(new Error("Only image files allowed for thumbnail"));
     }
 
+    // Allow images for profileImage
+    if (file.fieldname === "profileImage" && !file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files allowed for profile image"));
+    }
+
     cb(null, true);
   },
 });

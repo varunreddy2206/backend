@@ -56,10 +56,118 @@ export const login = async (req, res) => {
 
     logger.info(`User logged in: ${user.email}`);
 
-    return res.status(200).json({ message: "Login successful", token });
+    return res.status(200).json({ message: "Login successful", token, user });
 
   } catch (error) {
     logger.error("Login error", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get user profile
+export const getProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    const user = await UserModel.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    logger.info(`Profile fetched for user: ${user.email}`);
+    
+    return res.status(200).json({ message: "Profile fetched successfully", user });
+  } catch (error) {
+    logger.error("Get profile error", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update user profile
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { firstName, lastName, email, mobile, gender, dateOfBirth, currentPassword, newPassword } = req.body;
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update password if provided
+    if (currentPassword && newPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      
+      if (newPassword.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+      
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      user.password = hashedPassword;
+    }
+
+    // Update profile fields
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (email !== undefined) {
+      // Check if email is already taken by another user
+      const existingUser = await UserModel.findOne({ email, _id: { $ne: userId } });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      user.email = email;
+    }
+    if (mobile !== undefined) user.mobile = mobile;
+    if (gender !== undefined) user.gender = gender;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+
+    await user.save();
+
+    logger.info(`Profile updated for user: ${user.email}`);
+
+    const updatedUser = await UserModel.findById(userId).select("-password");
+    
+    return res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
+  } catch (error) {
+    logger.error("Update profile error", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Upload profile image
+export const uploadProfileImage = async (req, res) => {
+  try {
+    const userId = req.userId;
+    
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Save the image path (normalize to use forward slashes for URLs)
+    const imagePath = req.file.path.replace(/\\/g, "/");
+    user.profileImage = imagePath;
+
+    await user.save();
+
+    logger.info(`Profile image uploaded for user: ${user.email}`);
+
+    const updatedUser = await UserModel.findById(userId).select("-password");
+    
+    return res.status(200).json({ 
+      message: "Profile image uploaded successfully", 
+      user: updatedUser,
+      profileImage: imagePath
+    });
+  } catch (error) {
+    logger.error("Upload profile image error", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
