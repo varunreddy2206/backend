@@ -6,6 +6,7 @@ import "dotenv/config";
 import errorHandler from "./Middlewares/errorHandler.js";
 import AuthRouter from "../src/router/auth.routes.js";
 import CourseRouter from "../src/router/course.routes.js";
+import logger from "./utils/logger.js";
 
 const app = express();
 const PORT = process.env.PORT || 8899;
