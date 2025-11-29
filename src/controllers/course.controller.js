@@ -1,8 +1,65 @@
 import CourseModel from "../modals/course.model.js";
 
+// export const createCourse = async (req, res) => {
+//   try {
+//     const newCourse = await CourseModel.create(req.body);
+
+//     return res.status(201).json({
+//       status: true,
+//       message: "Course created successfully",
+//       data: newCourse,
+//     });
+//   } catch (error) {
+//     console.log("Create Course Error:", error);
+//     return res.status(500).json({
+//       status: false,
+//       message: "Server Error",
+//     });
+//   }
+// };
+
 export const createCourse = async (req, res) => {
   try {
-    const newCourse = await CourseModel.create(req.body);
+    const body = req.body;
+
+    // Attach PDF file if uploaded
+    if (req.files["curriculumPdf"]) {
+      body.curriculumPdf = req.files["curriculumPdf"][0].path;
+    }
+
+    // Attach lesson videos & materials (Self Learning)
+    if (body.trainingOptions === "Self Learning") {
+      let videoFiles = req.files["lessonVideos"] || [];
+      let materialFiles = req.files["lessonMaterials"] || [];
+
+      let videoIndex = 0;
+      let materialIndex = 0;
+
+      // Parse curriculum if it's a string (it should be, based on validation)
+      if (typeof body.curriculum === "string") {
+        body.curriculum = JSON.parse(body.curriculum);
+      }
+
+      body.curriculum.forEach((module) => {
+        module.lessons.forEach((lesson) => {
+          if (lesson.type === "video") {
+            if (videoFiles[videoIndex]) {
+              lesson.uploadVideo = videoFiles[videoIndex].path;
+              videoIndex++;
+            }
+          } else if (lesson.type === "material") {
+            if (materialFiles[materialIndex]) {
+              lesson.materialUrl = materialFiles[materialIndex].path;
+              materialIndex++;
+            }
+          }
+          // Quiz data is already in lesson.quiz from the JSON body
+        });
+      });
+    }
+
+    // Create course
+    const newCourse = await CourseModel.create(body);
 
     return res.status(201).json({
       status: true,
@@ -21,25 +78,97 @@ export const createCourse = async (req, res) => {
 export const getCourses = async (req, res) => {
   try {
     const { category } = req.params;
-    console.log("category", category);
 
     // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Filter object
+    // Build filter object
     const filter = {};
-    if (category) {
+
+    // Category filter (from params or query)
+    if (category && category !== 'all') {
       filter.category = category;
+    } else if (req.query.category) {
+      filter.category = req.query.category;
     }
 
+    // Multiple categories filter
+    if (req.query.categories) {
+      const categories = Array.isArray(req.query.categories)
+        ? req.query.categories
+        : req.query.categories.split(',');
+      filter.category = { $in: categories };
+    }
+
+    // Training mode filter
+    if (req.query.modes) {
+      const modes = Array.isArray(req.query.modes)
+        ? req.query.modes
+        : req.query.modes.split(',');
+      filter.trainingOptions = { $in: modes };
+    }
+
+    // Level filter
+    if (req.query.level) {
+      filter.level = req.query.level;
+    }
+
+    // Price range filter
+    if (req.query.minPrice || req.query.maxPrice) {
+      filter.basePrice = {};
+      if (req.query.minPrice) {
+        filter.basePrice.$gte = parseFloat(req.query.minPrice);
+      }
+      if (req.query.maxPrice) {
+        filter.basePrice.$lte = parseFloat(req.query.maxPrice);
+      }
+    }
+
+    // Search filter (title, description, instructor)
+    if (req.query.search) {
+      filter.$or = [
+        { title: { $regex: req.query.search, $options: 'i' } },
+        { description: { $regex: req.query.search, $options: 'i' } },
+        { instructorName: { $regex: req.query.search, $options: 'i' } },
+      ];
+    }
+
+    // Sorting
+    let sortOption = { createdAt: -1 }; // Default: newest first
+
+    if (req.query.sortBy) {
+      switch (req.query.sortBy) {
+        case 'title':
+          sortOption = { title: 1 };
+          break;
+        case 'price-low':
+          sortOption = { basePrice: 1 };
+          break;
+        case 'price-high':
+          sortOption = { basePrice: -1 };
+          break;
+        case 'rating':
+          sortOption = { rating: -1 };
+          break;
+        case 'students':
+          sortOption = { totalReviews: -1 };
+          break;
+        default:
+          sortOption = { createdAt: -1 };
+      }
+    }
+
+    // Get total count for pagination
     const totalCourses = await CourseModel.countDocuments(filter);
 
+    // Fetch courses with filters, sorting, and pagination
     const courses = await CourseModel.find(filter)
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 });
+      .sort(sortOption)
+      .select('-reviews'); // Exclude reviews array for performance
 
     return res.status(200).json({
       status: true,
