@@ -1,9 +1,64 @@
 import CourseModel from "../modals/course.model.js";
+import UserModel from "../modals/user.modal.js";
 import logger from "../utils/logger.js";
 
 // export const createCourse = async (req, res) => {
 //   try {
-//     const newCourse = await CourseModel.create(req.body);
+//     const body = req.body;
+//     console.log("BODY:", req.body);
+//     console.log("FILES:", req.files);
+//     if (req.files["thumbnail"]) {
+//       body.thumbnail = req.files["thumbnail"][0].path;
+//     }
+
+//     // Attach thumbnail image if uploaded
+//     if (req.files["thumbnail"]) {
+//       body.thumbnail = req.files["thumbnail"][0].path;
+//     }
+
+//     // Attach PDF file if uploaded
+//     if (req.files["curriculumPdf"]) {
+//       body.curriculumPdf = req.files["curriculumPdf"][0].path;
+//     }
+
+//     // Attach lesson videos & materials (Self Learning)
+//     if (body.trainingOptions === "Self Learning") {
+//       let videoFiles = req.files["lessonVideos"] || [];
+//       let materialFiles = req.files["lessonMaterials"] || [];
+
+//       let videoIndex = 0;
+//       let materialIndex = 0;
+
+//       // Parse curriculum if it's a string (it should be, based on validation)
+//       if (typeof body.curriculum === "string") {
+//         body.curriculum = JSON.parse(body.curriculum);
+//       }
+
+//       // Parse batches if it's a string
+//       if (typeof body.batches === "string") {
+//         body.batches = JSON.parse(body.batches);
+//       }
+
+//       body.curriculum.forEach((module) => {
+//         module.lessons.forEach((lesson) => {
+//           if (lesson.type === "video") {
+//             if (videoFiles[videoIndex]) {
+//               lesson.uploadVideo = videoFiles[videoIndex].path;
+//               videoIndex++;
+//             }
+//           } else if (lesson.type === "material") {
+//             if (materialFiles[materialIndex]) {
+//               lesson.materialUrl = materialFiles[materialIndex].path;
+//               materialIndex++;
+//             }
+//           }
+//           // Quiz data is already in lesson.quiz from the JSON body
+//         });
+//       });
+//     }
+
+//     // Create course
+//     const newCourse = await CourseModel.create(body);
 
 //     return res.status(201).json({
 //       status: true,
@@ -22,52 +77,85 @@ import logger from "../utils/logger.js";
 export const createCourse = async (req, res) => {
   try {
     const body = req.body;
-    if (req.files["thumbnail"]) {
-      body.thumbnail = req.files["thumbnail"][0].path;
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+
+    // -------------------------------
+    // Parse only arrays (safe fields)
+    // -------------------------------
+    const parseJSON = (field) => {
+      if (!body[field]) return;
+      if (typeof body[field] === "string") {
+        try {
+          body[field] = JSON.parse(body[field]);
+        } catch (err) {
+          return res.status(400).json({
+            status: false,
+            message: `Invalid JSON format in '${field}'`,
+          });
+        }
+      }
+    };
+
+    parseJSON("skills");
+    parseJSON("careerOpportunities");
+    parseJSON("batches");
+
+    // -------------------------------------------------
+    // DO NOT PARSE CURRICULUM HERE (important!)
+    // -------------------------------------------------
+
+    // -------------------------------
+    // Handle Uploaded Files
+    // -------------------------------
+    if (req.files?.thumbnail) {
+      body.thumbnail = req.files.thumbnail[0].path;
     }
 
-    // Attach thumbnail image if uploaded
-    if (req.files["thumbnail"]) {
-      body.thumbnail = req.files["thumbnail"][0].path;
+    if (req.files?.curriculumPdf) {
+      body.curriculumPdf = req.files.curriculumPdf[0].path;
     }
 
-    // Attach PDF file if uploaded
-    if (req.files["curriculumPdf"]) {
-      body.curriculumPdf = req.files["curriculumPdf"][0].path;
-    }
-
-    // Attach lesson videos & materials (Self Learning)
+    // -------------------------------
+    // Handle Self Learning Training
+    // -------------------------------
     if (body.trainingOptions === "Self Learning") {
-      let videoFiles = req.files["lessonVideos"] || [];
-      let materialFiles = req.files["lessonMaterials"] || [];
+      // Parse curriculum here only
+      if (typeof body.curriculum === "string") {
+        try {
+          body.curriculum = JSON.parse(body.curriculum);
+        } catch (err) {
+          return res.status(400).json({
+            status: false,
+            message: "Invalid JSON in curriculum",
+          });
+        }
+      }
+
+      const videoFiles = req.files?.lessonVideos || [];
+      const materialFiles = req.files?.lessonMaterials || [];
 
       let videoIndex = 0;
       let materialIndex = 0;
 
-      // Parse curriculum if it's a string (it should be, based on validation)
-      if (typeof body.curriculum === "string") {
-        body.curriculum = JSON.parse(body.curriculum);
-      }
-
       body.curriculum.forEach((module) => {
         module.lessons.forEach((lesson) => {
-          if (lesson.type === "video") {
-            if (videoFiles[videoIndex]) {
-              lesson.uploadVideo = videoFiles[videoIndex].path;
-              videoIndex++;
-            }
-          } else if (lesson.type === "material") {
-            if (materialFiles[materialIndex]) {
-              lesson.materialUrl = materialFiles[materialIndex].path;
-              materialIndex++;
-            }
+          if (lesson.type === "video" && videoFiles[videoIndex]) {
+            lesson.uploadVideo = videoFiles[videoIndex].path;
+            videoIndex++;
           }
-          // Quiz data is already in lesson.quiz from the JSON body
+
+          if (lesson.type === "material" && materialFiles[materialIndex]) {
+            lesson.materialUrl = materialFiles[materialIndex].path;
+            materialIndex++;
+          }
         });
       });
     }
 
-    // Create course
+    // -------------------------------
+    // Save Course
+    // -------------------------------
     const newCourse = await CourseModel.create(body);
 
     return res.status(201).json({
@@ -75,6 +163,7 @@ export const createCourse = async (req, res) => {
       message: "Course created successfully",
       data: newCourse,
     });
+
   } catch (error) {
     console.log("Create Course Error:", error);
     return res.status(500).json({
@@ -83,6 +172,8 @@ export const createCourse = async (req, res) => {
     });
   }
 };
+
+
 
 export const getCourses = async (req, res) => {
   try {
@@ -386,6 +477,11 @@ export const enrollCourse = async (req, res) => {
     }
     course.enrolledUsers.push(userId);
     await course.save();
+
+    // Update User's enrolledCourses
+    await UserModel.findByIdAndUpdate(userId, {
+      $addToSet: { enrolledCourses: course._id }
+    });
 
     logger.info(`User ${userId} enrolled in course ${courseId}`);
 
