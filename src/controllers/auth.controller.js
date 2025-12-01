@@ -68,14 +68,14 @@ export const login = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     const user = await UserModel.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
     logger.info(`Profile fetched for user: ${user.email}`);
-    
+
     return res.status(200).json({ message: "Profile fetched successfully", user });
   } catch (error) {
     logger.error("Get profile error", error);
@@ -100,11 +100,11 @@ export const updateProfile = async (req, res) => {
       if (!isMatch) {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
-      
+
       if (newPassword.length < 8) {
         return res.status(400).json({ message: "Password must be at least 8 characters" });
       }
-      
+
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       user.password = hashedPassword;
     }
@@ -129,7 +129,7 @@ export const updateProfile = async (req, res) => {
     logger.info(`Profile updated for user: ${user.email}`);
 
     const updatedUser = await UserModel.findById(userId).select("-password");
-    
+
     return res.status(200).json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     logger.error("Update profile error", error);
@@ -141,7 +141,7 @@ export const updateProfile = async (req, res) => {
 export const uploadProfileImage = async (req, res) => {
   try {
     const userId = req.userId;
-    
+
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
@@ -160,14 +160,108 @@ export const uploadProfileImage = async (req, res) => {
     logger.info(`Profile image uploaded for user: ${user.email}`);
 
     const updatedUser = await UserModel.findById(userId).select("-password");
-    
-    return res.status(200).json({ 
-      message: "Profile image uploaded successfully", 
+
+    return res.status(200).json({
+      message: "Profile image uploaded successfully",
       user: updatedUser,
       profileImage: imagePath
     });
   } catch (error) {
     logger.error("Upload profile image error", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+export const getRegistrations = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Filter for users with role "Users"
+    const filter = { role: "Users" };
+
+    // Optional: Add search functionality if needed later
+    if (req.query.search) {
+      filter.$or = [
+        { firstName: { $regex: req.query.search, $options: "i" } },
+        { lastName: { $regex: req.query.search, $options: "i" } },
+        { email: { $regex: req.query.search, $options: "i" } },
+      ];
+    }
+
+    const totalUsers = await UserModel.countDocuments(filter);
+    const users = await UserModel.find(filter)
+      .select("-password") // Exclude password
+      .sort({ createdAt: -1 }) // Newest first
+      .skip(skip)
+      .limit(limit);
+
+    return res.status(200).json({
+      status: true,
+      message: "Registrations fetched successfully",
+      data: {
+        users,
+        pagination: {
+          totalUsers,
+          totalPages: Math.ceil(totalUsers / limit),
+          currentPage: page,
+          limit,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get registrations error", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get enrolled students (Users with at least one enrolled course)
+export const getEnrolledStudents = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Filter for users with role "Users" AND at least one enrolled course
+    const filter = {
+      role: "Users",
+      enrolledCourses: { $exists: true, $not: { $size: 0 } }
+    };
+
+    // Optional: Add search functionality
+    if (req.query.search) {
+      filter.$or = [
+        { firstName: { $regex: req.query.search, $options: "i" } },
+        { lastName: { $regex: req.query.search, $options: "i" } },
+        { email: { $regex: req.query.search, $options: "i" } },
+      ];
+    }
+
+    const totalStudents = await UserModel.countDocuments(filter);
+    const students = await UserModel.find(filter)
+      .select("-password") // Exclude password
+      .populate("enrolledCourses", "title thumbnail") // Populate course details
+      .sort({ createdAt: -1 }) // Newest first
+      .skip(skip)
+      .limit(limit);
+
+    return res.status(200).json({
+      status: true,
+      message: "Students fetched successfully",
+      data: {
+        students,
+        pagination: {
+          totalStudents,
+          totalPages: Math.ceil(totalStudents / limit),
+          currentPage: page,
+          limit,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Get enrolled students error", error);
     return res.status(500).json({ message: "Server error" });
   }
 };

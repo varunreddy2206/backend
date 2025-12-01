@@ -72,110 +72,214 @@ import { TrainingOptions } from "../common/courses.data.js";
 
 // TRAINING OPTIONS BASED VALIDATION
 // TRAINING OPTIONS BASED VALIDATION
+// export const createCourseValidation = [
+//   // Basic fields
+//   body("title").notEmpty().withMessage("Course title is required"),
+
+//   body("subtitle").notEmpty().withMessage("Subtitle is required"),
+
+//   body("level")
+//     .notEmpty()
+//     .withMessage("Level is required")
+//     .isIn(["Beginner", "Intermediate", "Expert"])
+//     .withMessage("Level must be Beginner / Intermediate / Expert"),
+
+//   body("totalHours").notEmpty().withMessage("Total hours required"),
+
+//   body("language").notEmpty().withMessage("Language is required"),
+
+//   body("basePrice")
+//     .notEmpty()
+//     .withMessage("Base price is required")
+//     .isNumeric()
+//     .withMessage("Base price must be a number"),
+
+//   // Instructor Validation
+//   body("instructorName").notEmpty().withMessage("Instructor name is required"),
+
+//   // Training Option
+//   body("trainingOptions")
+//     .notEmpty()
+//     .withMessage("Training option required")
+//     .isIn(Object.values(TrainingOptions))
+//     .withMessage("Invalid training option"),
+
+//   // -------------------------
+//   // SELF LEARNING VALIDATION
+//   // -------------------------
+//   body("curriculum")
+//     .if(body("trainingOptions").equals("Self Learning"))
+//     .notEmpty()
+//     .withMessage("Curriculum is required for self learning")
+//     .custom((value) => {
+//       try {
+//         const curriculum = JSON.parse(value);
+//         if (!Array.isArray(curriculum) || curriculum.length === 0) {
+//           throw new Error("Curriculum must be a non-empty array");
+//         }
+//         curriculum.forEach((module, mIndex) => {
+//           if (!module.moduleTitle)
+//             throw new Error(`Module ${mIndex + 1} title is required`);
+//           if (!Array.isArray(module.lessons) || module.lessons.length === 0)
+//             throw new Error(`Module ${mIndex + 1} must have lessons`);
+
+//           module.lessons.forEach((lesson, lIndex) => {
+//             if (!lesson.title)
+//               throw new Error(
+//                 `Lesson ${lIndex + 1} in Module ${mIndex + 1} title is required`
+//               );
+//             if (!lesson.duration)
+//               throw new Error(
+//                 `Lesson ${lIndex + 1} in Module ${mIndex + 1
+//                 } duration is required`
+//               );
+//             if (
+//               lesson.type &&
+//               !["video", "quiz", "material"].includes(lesson.type)
+//             )
+//               throw new Error(
+//                 `Lesson ${lIndex + 1} in Module ${mIndex + 1} has invalid type`
+//               );
+//           });
+//         });
+//         return true;
+//       } catch (error) {
+//         throw new Error("Invalid curriculum format: " + error.message);
+//       }
+//     }),
+
+//   // -------------------------
+//   // BATCH BASED COURSES
+//   // (Live, Classroom, Corporate)
+//   // -------------------------
+//   body("batches")
+//     .if(
+//       body("trainingOptions").isIn([
+//         "Live Classes",
+//         "Classroom Classes",
+//         "Corporate",
+//       ])
+//     )
+//     .notEmpty()
+//     .withMessage("Batches are required for this course type")
+//     .custom((value) => {
+//       try {
+//         // If batches is sent as string (JSON), parse it. If sent as array (from some clients), use as is.
+//         // Assuming JSON string for consistency if FormData
+//         const batches = typeof value === "string" ? JSON.parse(value) : value;
+//         if (!Array.isArray(batches) || batches.length === 0) {
+//           throw new Error("Batches must be a non-empty array");
+//         }
+//         return true;
+//       } catch (e) {
+//         throw new Error("Invalid batches format");
+//       }
+//     }),
+// ];
+
 export const createCourseValidation = [
-  // Basic fields
-  body("title").notEmpty().withMessage("Course title is required"),
 
-  body("subtitle").notEmpty().withMessage("Subtitle is required"),
-
-  body("level")
-    .notEmpty()
-    .withMessage("Level is required")
+  // Basic
+  body("category").notEmpty().withMessage("Category is required"),
+  body("level").notEmpty().withMessage("Level is required")
     .isIn(["Beginner", "Intermediate", "Expert"])
     .withMessage("Level must be Beginner / Intermediate / Expert"),
-
-  body("totalHours").notEmpty().withMessage("Total hours required"),
-
+  body("title").notEmpty().withMessage("Course title is required"),
+  body("subtitle").notEmpty().withMessage("Subtitle is required"),
+  body("description").notEmpty().withMessage("Description is required"),
   body("language").notEmpty().withMessage("Language is required"),
-
-  body("basePrice")
-    .notEmpty()
-    .withMessage("Base price is required")
-    .isNumeric()
-    .withMessage("Base price must be a number"),
-
-  // Instructor Validation
+  body("totalHours").notEmpty().withMessage("Total hours required"),
   body("instructorName").notEmpty().withMessage("Instructor name is required"),
+
+  // Pricing
+  body("basePrice")
+    .notEmpty().withMessage("Base price is required")
+    .isNumeric().withMessage("Base price must be a number"),
 
   // Training Option
   body("trainingOptions")
-    .notEmpty()
-    .withMessage("Training option required")
-    .isIn(Object.values(TrainingOptions))
+    .notEmpty().withMessage("Training option required")
+    .isIn(["Self Learning", "Live Classes", "Classroom Classes", "Corporate"])
     .withMessage("Invalid training option"),
 
-  // -------------------------
-  // SELF LEARNING VALIDATION
-  // -------------------------
+  // SELF LEARNING — curriculum required
+  // body("curriculum")
+  //   .if(body("trainingOptions").equals("Self Learning"))
+  //   .notEmpty().withMessage("Curriculum is required for self learning")
+  //   .custom(value => {
+  //     try {
+  //       const arr = typeof value === "string" ? JSON.parse(value) : value;
+  //       if (!Array.isArray(arr) || arr.length === 0)
+  //         throw new Error("Curriculum must be non-empty array");
+
+  //       arr.forEach((mod, i) => {
+  //         if (!mod.title) throw new Error(`Module ${i + 1} title required`);
+  //         if (!mod.lessons || mod.lessons.length === 0)
+  //           throw new Error(`Module ${i + 1} needs lessons`);
+
+  //         mod.lessons.forEach((lesson, j) => {
+  //           if (!lesson.title) throw new Error(`Lesson ${j + 1} title required`);
+  //           if (!lesson.duration)
+  //             throw new Error(`Lesson ${j + 1} duration required`);
+  //         });
+  //       });
+
+  //       return true;
+  //     } catch (e) {
+  //       throw new Error("Invalid curriculum format: " + e.message);
+  //     }
+  //   }),
+
   body("curriculum")
     .if(body("trainingOptions").equals("Self Learning"))
-    .notEmpty()
-    .withMessage("Curriculum is required for self learning")
-    .custom((value) => {
+    .notEmpty().withMessage("Curriculum is required for self learning")
+    .custom(value => {
       try {
-        const curriculum = JSON.parse(value);
-        if (!Array.isArray(curriculum) || curriculum.length === 0) {
-          throw new Error("Curriculum must be a non-empty array");
-        }
-        curriculum.forEach((module, mIndex) => {
-          if (!module.moduleTitle)
-            throw new Error(`Module ${mIndex + 1} title is required`);
-          if (!Array.isArray(module.lessons) || module.lessons.length === 0)
-            throw new Error(`Module ${mIndex + 1} must have lessons`);
+        const arr = typeof value === "string" ? JSON.parse(value) : value;
 
-          module.lessons.forEach((lesson, lIndex) => {
+        if (!Array.isArray(arr) || arr.length === 0)
+          throw new Error("Curriculum must be non-empty array");
+
+        arr.forEach((mod, i) => {
+          // FIX HERE 🔥
+          if (!mod.moduleTitle)
+            throw new Error(`Module ${i + 1} title required`);
+
+          if (!mod.lessons || mod.lessons.length === 0)
+            throw new Error(`Module ${i + 1} needs lessons`);
+
+          mod.lessons.forEach((lesson, j) => {
             if (!lesson.title)
-              throw new Error(
-                `Lesson ${lIndex + 1} in Module ${mIndex + 1} title is required`
-              );
+              throw new Error(`Lesson ${j + 1} title required`);
+
             if (!lesson.duration)
-              throw new Error(
-                `Lesson ${lIndex + 1} in Module ${mIndex + 1
-                } duration is required`
-              );
-            if (
-              lesson.type &&
-              !["video", "quiz", "material"].includes(lesson.type)
-            )
-              throw new Error(
-                `Lesson ${lIndex + 1} in Module ${mIndex + 1} has invalid type`
-              );
+              throw new Error(`Lesson ${j + 1} duration required`);
           });
         });
+
         return true;
-      } catch (error) {
-        throw new Error("Invalid curriculum format: " + error.message);
+      } catch (e) {
+        throw new Error("Invalid curriculum format: " + e.message);
       }
     }),
 
-  // -------------------------
+
   // BATCH BASED COURSES
-  // (Live, Classroom, Corporate)
-  // -------------------------
   body("batches")
-    .if(
-      body("trainingOptions").isIn([
-        "Live Classes",
-        "Classroom Classes",
-        "Corporate",
-      ])
-    )
-    .notEmpty()
-    .withMessage("Batches are required for this course type")
-    .custom((value) => {
+    .if(body("trainingOptions").isIn(["Live Classes", "Classroom Classes", "Corporate"]))
+    .notEmpty().withMessage("Batches are required")
+    .custom(value => {
       try {
-        // If batches is sent as string (JSON), parse it. If sent as array (from some clients), use as is.
-        // Assuming JSON string for consistency if FormData
-        const batches = typeof value === "string" ? JSON.parse(value) : value;
-        if (!Array.isArray(batches) || batches.length === 0) {
-          throw new Error("Batches must be a non-empty array");
-        }
+        const arr = typeof value === "string" ? JSON.parse(value) : value;
+        if (!Array.isArray(arr) || arr.length === 0)
+          throw new Error("Batches must be non-empty array");
         return true;
-      } catch (e) {
+      } catch {
         throw new Error("Invalid batches format");
       }
-    }),
+    })
 ];
+
 
 // -------------------------------
 // ADD REVIEW VALIDATION

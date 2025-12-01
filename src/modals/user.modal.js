@@ -6,13 +6,13 @@ const UserUserSchema = new Schema({
   lastName: { type: String, required: true },
   email: { type: String, required: true },
   mobile: { type: String, required: true },
-//   role: { type: String, enum: ["Admin", "Users"], default: "Admin" },
-//   address: { type: String, required: true },
+  role: { type: String, enum: ["Admin", "Users"], default: "Users" },
+  //   address: { type: String, required: true },
   password: { type: String, required: true },
   profileImage: { type: String, default: null },
   gender: { type: String, default: null },
   dateOfBirth: { type: String, default: null },
- 
+  enrolledCourses: [{ type: Schema.Types.ObjectId, ref: "Course" }],
 });
 
 const UserModel = mongoose.model("User", UserUserSchema);
